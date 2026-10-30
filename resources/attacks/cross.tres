@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BoxingAttack" load_steps=2 format=3 uid="uid://bxlrk35pyfuk"]
+
+[ext_resource type="Script" uid="uid://bdd5a1h46ydnn" path="res://scripts/combat/boxing_attack.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+attack_id = &"cross"
+damage = 18.0
+stamina_cost = 22.0
+windup = 0.18
+active = 0.08
+recovery = 0.34
+reach = 51.0
+impact_pause = 0.055
+visual_recoil = 8.0
+knockback_speed = 145.0
+alternate_recovery_credit = 0.06
+glove_side = -1

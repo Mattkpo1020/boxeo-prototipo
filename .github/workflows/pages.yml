@@ -1,0 +1,65 @@
+name: Prototipo web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Descargar Godot 4.5.1 y plantillas web oficiales
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://github.com/godotengine/godot/releases/download/4.5.1-stable'
+          curl --fail --location --retry 3 "$base/Godot_v4.5.1-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          curl --fail --location --retry 3 "$base/Godot_v4.5.1-stable_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v4.5.1-stable_linux.x86_64"
+          unzip -q "$RUNNER_TEMP/templates.tpz" 'templates/web*' -d "$RUNNER_TEMP/templates"
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.5.1.stable"
+          cp "$RUNNER_TEMP/templates/templates/"web*.zip "$HOME/.local/share/godot/export_templates/4.5.1.stable/"
+      - name: Importar y verificar el combate
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot="$RUNNER_TEMP/godot/Godot_v4.5.1-stable_linux.x86_64"
+          "$godot" --headless --path . --editor --import --quit
+          for test in tests/*_smoke.gd; do
+            "$godot" --headless --path . --fixed-fps 60 --script "res://$test"
+          done
+      - name: Exportar para navegador
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/web
+          "$RUNNER_TEMP/godot/Godot_v4.5.1-stable_linux.x86_64" --headless --path . --export-release Web build/web/index.html
+          touch build/web/.nojekyll
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v4

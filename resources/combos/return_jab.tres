@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="BoxingCombo" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/boxing_combo.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+title = "RESPUESTA RÁPIDA"
+sequence = Array[StringName]([&"cross", &"jab"])
+finisher_damage_scale = 1.5

@@ -1,0 +1,11 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/combat_test.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/opponent.tscn" id="2"]
+
+[node name="Sparring" instance=ExtResource("1")]
+sparring_enabled = true
+
+[node name="Opponent" parent="." node_paths=PackedStringArray("target") instance=ExtResource("2")]
+position = Vector2(741, 360)
+target = NodePath("../Player")
