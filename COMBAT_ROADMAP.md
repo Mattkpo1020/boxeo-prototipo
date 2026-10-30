@@ -31,7 +31,7 @@ Estas mecánicas existen; todavía necesitan ajustes y validación de sensación
 | 10 | Rival más humano | Usar las reglas finales con reacción limitada, errores y estilos diferentes | Evaluar implementación aquí o en Cursor |
 | 11 | Sensación y controles | Afinar pausas, señales, audio provisional y comodidad con varios dedos | Pulido transversal y cierre |
 | 12 | Reglas del encuentro | Definir duración, rounds y victoria para el prototipo; conservar reinicio rápido | Después del núcleo |
-| 13 | Pausa del juego | Botón touch y Escape para pausar/reanudar; congelar combate, IA y reserva amarilla, y limpiar entradas al volver | Pendiente; implementar antes de probar sesiones largas |
+| 13 | Pausa del juego | Botón touch y Escape para pausar/reanudar; congelar combate, IA y reserva amarilla, y limpiar entradas al volver | Implementada con regreso al inicio y pausa por cambio de app/orientación |
 
 ## Primeros ajustes propuestos
 
@@ -77,7 +77,7 @@ Implementada con L o ESQ. (cuarto botón táctil). Dirección del joystick al pu
 
 ### Pausa del juego
 
-Tarea añadida: botón visible para celular y Escape en teclado; pausar y reanudar. Congelar movimiento, golpes, empuje, IA, estamina y pérdida de reserva amarilla; mantener operativos el menú y el botón de reanudar. Limpiar las entradas touch y cancelar cargas al entrar en pausa, sin disparar golpes al volver. Validar también la pérdida de foco y la convivencia con el resultado del combate. Pendiente de implementación.
+Implementada: PAUSA y Escape; continuar o volver al inicio. Congela movimiento, golpes, empuje, IA, estamina y pérdida de reserva amarilla; el menú sigue operativo. Limpia entradas touch y cancela cargas al pausar, sin disparar golpes al volver. Cambiar de app o girar a vertical pausa y exige continuar explícitamente. `mobile_app_smoke.gd` prueba inicio por touch, ambos modos, congelación de combate, regreso al menú y cambios de orientación/foco.
 
 ## Evaluación del rival y posible tarea para Cursor
 

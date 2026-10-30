@@ -21,11 +21,13 @@ Los cambios locales no aparecen solos en el celular: hay que subirlos al reposit
 - Renderizador Compatibility ya usado por el juego.
 - Un solo hilo, sin requisitos de aislamiento entre orígenes.
 - Exportación a build/web/index.html, con archivos auxiliares sin renombrar.
-- Canvas adaptable y gestos de desplazamiento del navegador desactivados sobre él.
-- Sin caché offline/PWA en esta primera versión para simplificar las actualizaciones.
+- Canvas adaptable con aspecto expand, viewport-fit=cover y márgenes de seguridad del iPhone trasladados al HUD y los controles.
+- PWA con manifest, iconos, modo standalone y orientación horizontal solicitada. Safari puede exigir girar manualmente: se muestra un aviso en vertical.
+- Pantalla inicial en Godot antes del combate. Instrucciones de instalación dentro del menú; no se intenta instalar sin confirmación del usuario.
+- Caché gestionada por el service worker de Godot y botón para aplicar una actualización pendiente desde el inicio. La primera carga requiere conexión; el almacenamiento offline depende del navegador y puede ser eliminado por iOS.
 - Los scripts de pruebas y la documentación se excluyen del paquete del juego.
 
-El rendimiento y el audio deben validarse en el navegador real; las pruebas automáticas de escritorio no los garantizan. La versión nativa para Android/iOS será un paso separado. La pausa del juego continúa pendiente.
+El rendimiento, el audio, la instalación y el multitouch deben validarse en el iPhone real; las pruebas automáticas de escritorio no los garantizan. La versión nativa para Android/iOS será un paso separado. La pausa manual y por cambio de app/orientación ya está implementada.
 
 ## Exportación manual
 

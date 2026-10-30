@@ -32,14 +32,16 @@ func set_cross_charge(ratio: float, charging: bool) -> void:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func configure_layout(ring: Rect2, viewport_size: Vector2) -> void:
+func configure_layout(ring: Rect2, viewport_size: Vector2, safe_area: Rect2 = Rect2()) -> void:
 	release_all()
-	var side_width: float = ring.position.x
+	if not safe_area.has_area():
+		safe_area = Rect2(Vector2.ZERO, viewport_size)
+	var side_width: float = ring.position.x - safe_area.position.x
 	var control_scale: float = clampf(side_width / 340.0, 0.55, 1.0)
 	joystick_radius = 90.0 * control_scale
 	button_radius = 48.0 * control_scale
-	joystick_center = Vector2(side_width * 0.5, viewport_size.y * 0.61)
-	var right_center := Vector2(viewport_size.x - side_width * 0.5, viewport_size.y * 0.55)
+	joystick_center = safe_area.position + Vector2(side_width * 0.5, safe_area.size.y * 0.61)
+	var right_center := safe_area.position + Vector2(safe_area.size.x - side_width * 0.5, safe_area.size.y * 0.55)
 	button_centers = {
 		&"jab": right_center + Vector2(-55, -60) * control_scale,
 		&"cross": right_center + Vector2(55, -60) * control_scale,
@@ -49,6 +51,10 @@ func configure_layout(ring: Rect2, viewport_size: Vector2) -> void:
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
+	# La emulación permite usar menús Button con touch. Los controles del
+	# combate ya leen dedos reales: ignorar aquí su copia de ratón.
+	if event is InputEventMouse and event.device == InputEvent.DEVICE_ID_EMULATION:
+		return
 	if not is_visible_in_tree():
 		return
 	if event is InputEventScreenTouch:

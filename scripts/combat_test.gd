@@ -1,5 +1,8 @@
 extends Node2D
 
+const ViewportLayout = preload("res://scripts/ui/mobile_viewport.gd")
+const PauseController = preload("res://scripts/ui/combat_pause.gd")
+
 @export var sparring_enabled: bool = false
 
 @onready var player: CharacterBody2D = $Player
@@ -30,6 +33,7 @@ func _enter_tree() -> void:
 	_bind_key("cross", KEY_J)
 	_bind_key("block", KEY_K)
 	_bind_key("dodge", KEY_L)
+	_bind_key("pause", KEY_ESCAPE)
 
 func _ready() -> void:
 	if sparring_enabled:
@@ -81,6 +85,10 @@ func _ready() -> void:
 	_on_player_recoverable_changed(player.health.recoverable_health)
 	_on_dummy_recoverable_changed(dummy.health.recoverable_health)
 	_layout_arena()
+	var pause_controller := PauseController.new()
+	pause_controller.name = "CombatPause"
+	add_child(pause_controller)
+	$HUD/Versus.hide()
 
 func _style_fight_hud() -> void:
 	# Vida grande y energía fina, con bordes rectos para el futuro arte retro.
@@ -122,15 +130,18 @@ func _style_fight_hud() -> void:
 	$HUD/DummyLabel.add_theme_color_override("font_color", Color("ffb391"))
 
 func _layout_arena() -> void:
-	var viewport_size: Vector2 = get_viewport_rect().size
+	var full_size: Vector2 = get_viewport_rect().size
+	var safe_area: Rect2 = ViewportLayout.safe_rect(full_size)
+	var viewport_size: Vector2 = safe_area.size
 	var arena_top: float = 132.0
 	var arena_bottom: float = 80.0
 	var usable_height: float = viewport_size.y - arena_top - arena_bottom
 	var min_gutter: float = minf(168.0, viewport_size.x * 0.22)
 	var side: float = floorf(minf(usable_height, minf(viewport_size.x * 0.46, viewport_size.x - min_gutter * 2.0)))
 	ring_rect = Rect2(Vector2((viewport_size.x - side) * 0.5, arena_top + (usable_height - side) * 0.5), Vector2.ONE * side)
+	ring_rect.position += safe_area.position
 	var center: Vector2 = ring_rect.get_center()
-	var side_panel_width: float = maxf(120.0, minf(280.0, ring_rect.position.x - 24.0))
+	var side_panel_width: float = maxf(120.0, minf(280.0, ring_rect.position.x - safe_area.position.x - 24.0))
 	for control: Control in [$HUD/ModeButton, $HUD/RestartButton]:
 		control.size.x = side_panel_width
 	$RingWalls/Top.position = Vector2(center.x, ring_rect.position.y - 10)
@@ -150,22 +161,32 @@ func _layout_arena() -> void:
 	if sparring_enabled:
 		dummy.arena_rect = ring_rect
 	_layout_fight_hud(viewport_size)
+	for control: Control in [$HUD/HeaderBackground, $HUD/PlayerDefense, $HUD/OpponentDefense, $HUD/PlayerHealthLabel, player_health_bar, $HUD/PlayerRecoverable, $HUD/StaminaLabel, stamina_bar, $HUD/DummyLabel, health_bar, $HUD/DummyRecoverable, $HUD/OpponentStaminaLabel, $HUD/OpponentStamina, $HUD/Title, $HUD/Versus]:
+		control.position += safe_area.position
 	$HUD/ModeButton.position = Vector2(24.0, 154.0)
 	$HUD/RestartButton.position = Vector2(24.0, 209.0)
 	$HUD/BrainState.position = Vector2(24.0, 270.0)
 	$HUD/BrainState.size.x = side_panel_width
+	for control: Control in [$HUD/ModeButton, $HUD/RestartButton, $HUD/BrainState]:
+		control.position += safe_area.position
 	$HUD/ComboMessage.position = Vector2(ring_rect.position.x - 50, ring_rect.end.y + 8)
 	$HUD/ComboMessage.size = Vector2(side + 100, 24)
-	$HUD/ComboGuide.position = Vector2(ring_rect.end.x + 28, viewport_size.y - 180)
-	$HUD/ComboGuide.size = Vector2(viewport_size.x - ring_rect.end.x - 56, 120)
+	$HUD/ComboGuide.position = Vector2(ring_rect.end.x + 28, safe_area.end.y - 180)
+	$HUD/ComboGuide.size = Vector2(safe_area.end.x - ring_rect.end.x - 56, 120)
 	# En pantallas horizontales bajas se reserva este espacio para los cuatro botones.
 	$HUD/ComboGuide.visible = viewport_size.y >= 650.0
 	feedback.position = Vector2(ring_rect.position.x - 50, ring_rect.end.y + 33)
 	feedback.size = Vector2(side + 100, 20)
-	$HUD/Help.position = Vector2(0, viewport_size.y - 26)
+	$HUD/Help.position = Vector2(safe_area.position.x, safe_area.end.y - 26)
 	$HUD/Help.size = Vector2(viewport_size.x, 24)
-	touch_controls.configure_layout(ring_rect, viewport_size)
+	touch_controls.configure_layout(ring_rect, full_size, safe_area)
 	queue_redraw()
+
+func release_combat_inputs() -> void:
+	touch_controls.release_all()
+	player.notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
+	if sparring_enabled:
+		dummy.notification(NOTIFICATION_APPLICATION_FOCUS_OUT)
 
 func _layout_fight_hud(viewport_size: Vector2) -> void:
 	var margin: float = 36.0
@@ -173,6 +194,7 @@ func _layout_fight_hud(viewport_size: Vector2) -> void:
 	var bar_width: float = (viewport_size.x - margin * 2.0 - center_gap) * 0.5
 	var right_x: float = viewport_size.x - margin - bar_width
 	var energy_width: float = bar_width * 0.85
+	$HUD/HeaderBackground.position = Vector2.ZERO
 	$HUD/HeaderBackground.size = Vector2(viewport_size.x, 132)
 	$HUD/PlayerDefense.position = Vector2(margin, 112)
 	$HUD/PlayerDefense.size = Vector2(bar_width, 18)

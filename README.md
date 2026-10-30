@@ -6,7 +6,9 @@ Juego 2D cenital de boxeo táctico para celular horizontal, desarrollado en Godo
 
 La versión de prueba está en [Jugar al prototipo](https://mattkpo1020.github.io/boxeo-prototipo/).
 
-En iPhone: abrir el enlace en Safari, girar el teléfono en horizontal y tocar la pantalla para habilitar el audio si hace falta. Es un prototipo de navegador; todavía no es una app de App Store.
+En iPhone: abrir el enlace en Safari y girar el teléfono en horizontal. El menú inicial permite elegir sparring o práctica. Para usarlo sin las barras de Safari, tocar Compartir → Agregar a pantalla de inicio (con Abrir como app web activado si aparece). La instalación la confirma el usuario. Es una app web, no una app de App Store.
+
+El canvas se adapta al aspecto real del dispositivo y respeta las zonas de cámara e indicador de inicio. En combate, PAUSA o Escape permiten continuar o volver al inicio; cambiar de app o girar a vertical también pausa y requiere continuar explícitamente. Hay una ventana de confirmación para aplicar actualizaciones desde el inicio, sin interrumpir el combate.
 
 Joystick izquierdo para moverse. A la derecha: JAB, CROSS (mantener para cargar), BLOCK y ESQ. (paso en la dirección del joystick o hacia atrás si no se indica dirección).
 
