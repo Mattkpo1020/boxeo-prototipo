@@ -1,6 +1,10 @@
 # Pruebas desde el celular
 
-El proyecto incluye un preset Web para Godot 4.5.1 y un flujo de GitHub Actions que verifica el combate, exporta y publica en Pages. No se ha publicado aún ni se ha probado la exportación completa en navegador.
+El proyecto incluye un preset Web para Godot 4.5.1 y un flujo de GitHub Actions que verifica el combate, exporta y publica en Pages. La primera publicación completó pruebas, exportación y despliegue correctamente. Se verificaron carga, cambio de modo y jab en un navegador de escritorio con viewport horizontal de 844×390; falta comprobar Safari, sonido y multitouch en un iPhone real.
+
+- Juego: https://mattkpo1020.github.io/boxeo-prototipo/
+- Repositorio independiente: https://github.com/Mattkpo1020/boxeo-prototipo
+- Primer despliegue: https://github.com/Mattkpo1020/boxeo-prototipo/actions/runs/41097114359
 
 ## Primera publicación
 

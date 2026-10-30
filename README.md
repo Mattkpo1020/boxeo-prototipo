@@ -4,7 +4,7 @@ Juego 2D cenital de boxeo táctico para celular horizontal, desarrollado en Godo
 
 ## Jugar
 
-La versión de prueba se publica con GitHub Pages. Su dirección aparece en Settings → Pages y en el despliegue de Actions.
+La versión de prueba está en [Jugar al prototipo](https://mattkpo1020.github.io/boxeo-prototipo/).
 
 En iPhone: abrir el enlace en Safari, girar el teléfono en horizontal y tocar la pantalla para habilitar el audio si hace falta. Es un prototipo de navegador; todavía no es una app de App Store.
 
