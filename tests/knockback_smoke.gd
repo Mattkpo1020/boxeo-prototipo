@@ -108,7 +108,7 @@ func _run() -> void:
 
 	# La señal de KO cierra el combate durante apply_damage.
 	_rival.receive_attack(1000.0, Vector2.RIGHT, 0.0, 0.0, 145.0)
-	_expect(_scene._fight_finished and _rival._knockback_velocity.is_zero_approx(), "El KO no debe reintroducir movimiento después del cierre.")
+	_expect(_scene._between_rounds and _rival._knockback_velocity.is_zero_approx(), "El KO no debe reintroducir movimiento después del cierre.")
 	print("KNOCKBACK DISTANCES: jab=", jab_push, " cross=", cross_push, " charged=", charged_push, " blocked=", blocked_push)
 	_scene.queue_free()
 	await process_frame

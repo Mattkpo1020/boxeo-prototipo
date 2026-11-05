@@ -10,7 +10,9 @@ En iPhone: abrir el enlace en Safari y girar el teléfono en horizontal. El men�
 
 El canvas se adapta al aspecto real del dispositivo y respeta las zonas de cámara e indicador de inicio. En combate, PAUSA o Escape permiten continuar o volver al inicio; cambiar de app o girar a vertical también pausa y requiere continuar explícitamente. Hay una ventana de confirmación para aplicar actualizaciones desde el inicio, sin interrumpir el combate.
 
-Joystick izquierdo para moverse. A la derecha: JAB, CROSS (mantener para cargar), BLOCK y ESQ. (paso en la dirección del joystick o hacia atrás si no se indica dirección).
+Joystick izquierdo para moverse. En el panel de combate, CROSS y BLOCK ocupan la columna izquierda, y JAB y ESQ. la derecha. Mantené CROSS para cargarlo. ESQ. sigue la dirección del joystick o retrocede si está centrado.
+
+El sparring se juega sin reloj. Cada nocaut llena un punto del marcador y el primero en ganar dos asaltos gana la pelea. Entre asaltos se restauran la vida y la energía de ambos peleadores.
 
 Teclado: WASD/flechas, Espacio para jab, J para cross/carga, K para guardia, L para esquiva, Shift para correr y R para reiniciar.
 

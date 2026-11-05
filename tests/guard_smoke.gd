@@ -108,7 +108,7 @@ func _run() -> void:
 	rival.receive_attack(18.0, Vector2.RIGHT, 0.0, 0.0)
 	_expect(rival.has_guard_break() and scene.get_node("HUD/OpponentDefense").text == "GUARDIA ROTA", "El rival debe compartir reglas y aviso de ruptura.")
 	rival.health.apply_damage(1000.0)
-	_expect(scene._fight_finished and not rival.has_guard_break(), "El KO debe limpiar la penalización.")
+	_expect(scene._between_rounds and not rival.has_guard_break(), "El KO debe limpiar la penalización.")
 	_expect(scene.get_node("HUD/OpponentDefense").text.is_empty(), "No debe quedar un aviso de ruptura después del KO.")
 	scene.queue_free()
 	await process_frame

@@ -4,10 +4,8 @@ const ViewportLayout = preload("res://scripts/ui/mobile_viewport.gd")
 const PauseController = preload("res://scripts/ui/combat_pause.gd")
 
 @export var sparring_enabled: bool = false
-@export_range(1, 12) var total_rounds: int = 3
-@export_range(1.0, 180.0) var round_duration: float = 60.0
-@export_range(1.0, 60.0) var break_duration: float = 5.0
-const ROUND_BREAK_STAMINA: float = 60.0
+@export_range(1.0, 10.0) var break_duration: float = 2.0
+const ROUNDS_TO_WIN: int = 2
 
 @onready var player: CharacterBody2D = $Player
 @onready var stamina_bar: ProgressBar = $HUD/Stamina
@@ -20,7 +18,9 @@ var ring_rect := Rect2(360, 80, 560, 560)
 var _layout_initialized: bool = false
 var _fight_finished: bool = false
 var _round_number: int = 1
-var _round_time_left: float = 0.0
+var _player_round_wins: int = 0
+var _rival_round_wins: int = 0
+var _break_time_left: float = 0.0
 var _between_rounds: bool = false
 var _combo_message_left: float = 0.0
 var _player_healed: float = 0.0
@@ -60,8 +60,7 @@ func _ready() -> void:
 		dummy.counter_connected.connect(_on_counter_connected.bind(false))
 		dummy.guard_break_changed.connect(_on_guard_break_changed.bind(false))
 		_on_opponent_stamina_changed(dummy.stamina, dummy.max_stamina)
-		_round_time_left = round_duration
-		_update_round_clock()
+		_update_round_score()
 		$HUD/Feedback.text = "El rival entra, combina y sale. Cortale el paso o contraatacá."
 	if not sparring_enabled:
 		$HUD/Title.text = "PRÁCTICA"
@@ -149,7 +148,8 @@ func _layout_arena() -> void:
 	var full_size: Vector2 = get_viewport_rect().size
 	var safe_area: Rect2 = ViewportLayout.safe_rect(full_size)
 	var viewport_size: Vector2 = safe_area.size
-	var arena_top: float = 132.0
+	# Las cuerdas exteriores se dibujan 17 px por fuera del ring.
+	var arena_top: float = 156.0
 	var arena_bottom: float = 80.0
 	var usable_height: float = viewport_size.y - arena_top - arena_bottom
 	var min_gutter: float = minf(168.0, viewport_size.x * 0.22)
@@ -179,6 +179,8 @@ func _layout_arena() -> void:
 	_layout_fight_hud(viewport_size)
 	for control: Control in [$HUD/HeaderBackground, $HUD/PlayerDefense, $HUD/OpponentDefense, $HUD/PlayerHealthLabel, player_health_bar, $HUD/PlayerRecoverable, $HUD/StaminaLabel, stamina_bar, $HUD/DummyLabel, health_bar, $HUD/DummyRecoverable, $HUD/OpponentStaminaLabel, $HUD/OpponentStamina, $HUD/Title, $HUD/Versus]:
 		control.position += safe_area.position
+	$HUD/PlayerRounds.position += safe_area.position
+	$HUD/OpponentRounds.position += safe_area.position
 	$HUD/ModeButton.position = Vector2(24.0, 154.0)
 	$HUD/RestartButton.position = Vector2(24.0, 209.0)
 	$HUD/BrainState.position = Vector2(24.0, 270.0)
@@ -236,56 +238,61 @@ func _layout_fight_hud(viewport_size: Vector2) -> void:
 	$HUD/OpponentStaminaLabel.size = Vector2(energy_width, 20)
 	$HUD/OpponentStamina.position = Vector2(viewport_size.x - margin - energy_width, 99)
 	$HUD/OpponentStamina.size = Vector2(energy_width, 11)
+	$HUD/PlayerRounds.position = Vector2(margin + energy_width, 78)
+	$HUD/PlayerRounds.size = Vector2(bar_width - energy_width, 27)
+	$HUD/OpponentRounds.position = Vector2(right_x, 78)
+	$HUD/OpponentRounds.size = Vector2(bar_width - energy_width, 27)
 	$HUD/Title.position = Vector2(viewport_size.x * 0.5 - center_gap * 0.5, 16)
 	$HUD/Title.size = Vector2(center_gap, 24)
 	$HUD/Versus.position = Vector2(viewport_size.x * 0.5 - center_gap * 0.5, 42)
 	$HUD/Versus.size = Vector2(center_gap, 48)
 
 func _physics_process(delta: float) -> void:
-	if not sparring_enabled or _fight_finished:
+	if not _between_rounds:
 		return
-	var previous_second: int = ceili(_round_time_left)
-	_round_time_left = maxf(0.0, _round_time_left - delta)
-	if _round_time_left > 0.0:
-		if ceili(_round_time_left) != previous_second:
-			_update_round_clock()
-		return
-	if _between_rounds:
+	_break_time_left -= delta
+	if _break_time_left <= 0.0:
 		_start_next_round()
-	elif _round_number < total_rounds:
-		_between_rounds = true
-		_round_time_left = break_duration
-		_set_combat_active(false)
-		feedback.text = "Fin del asalto. Recuperás 60 de energía para el próximo."
-		_update_round_clock()
-	else:
-		var player_fraction: float = player.health.current_health / player.health.max_health
-		var rival_fraction: float = dummy.health.current_health / dummy.health.max_health
-		if is_equal_approx(player_fraction, rival_fraction):
-			_finish_fight("Empate por decisión.")
-		elif player_fraction > rival_fraction:
-			_finish_fight("¡Ganaste por decisión!")
-		else:
-			_finish_fight("Fin del sparring: perdiste por decisión.")
 
-func _update_round_clock() -> void:
-	var seconds: int = ceili(_round_time_left)
-	var clock_text: String = "%d:%02d" % [floori(seconds / 60.0), seconds % 60]
-	$HUD/Title.text = "PAUSA  " + clock_text if _between_rounds else "R%d/%d  %s" % [_round_number, total_rounds, clock_text]
+func _update_round_score() -> void:
+	$HUD/Title.text = "ASALTO %d" % _round_number
+	$HUD/PlayerRounds.text = "●".repeat(_player_round_wins) + "○".repeat(ROUNDS_TO_WIN - _player_round_wins)
+	$HUD/OpponentRounds.text = "●".repeat(_rival_round_wins) + "○".repeat(ROUNDS_TO_WIN - _rival_round_wins)
+
+func _win_round(player_won: bool) -> void:
+	if _fight_finished or _between_rounds:
+		return
+	if player_won:
+		_player_round_wins += 1
+	else:
+		_rival_round_wins += 1
+	_update_round_score()
+	if _player_round_wins == ROUNDS_TO_WIN or _rival_round_wins == ROUNDS_TO_WIN:
+		_finish_fight("¡Ganaste el combate!" if player_won else "Fin del combate: perdiste.")
+		return
+	_between_rounds = true
+	_break_time_left = break_duration
+	_set_combat_active(false)
+	feedback.text = "Ganaste el asalto por nocaut." if player_won else "El rival ganó el asalto por nocaut."
 
 func _start_next_round() -> void:
 	_between_rounds = false
 	_round_number += 1
-	_round_time_left = round_duration
 	var offset := Vector2(ring_rect.size.x * 0.18, 0.0)
 	player.position = ring_rect.get_center() - offset
 	dummy.position = ring_rect.get_center() + offset
 	touch_controls.release_all()
-	player.restore_stamina(ROUND_BREAK_STAMINA)
-	dummy.restore_stamina(ROUND_BREAK_STAMINA)
+	_player_heal_notice_left = 0.0
+	_rival_heal_notice_left = 0.0
+	_combo_message_left = 0.0
+	$HUD/ComboMessage.text = ""
+	player.health.reset()
+	dummy.health.reset()
+	player.restore_stamina(player.max_stamina)
+	dummy.restore_stamina(dummy.max_stamina)
 	_set_combat_active(true)
 	feedback.text = "¡Asalto %d!" % _round_number
-	_update_round_clock()
+	_update_round_score()
 
 func _process(_delta: float) -> void:
 	if _combo_message_left > 0.0:
@@ -331,7 +338,7 @@ func _on_brain_state_changed(label: String) -> void:
 	$HUD/BrainState.text = "RIVAL: " + label
 
 func _on_player_defense(blocked: bool, guard_broken: bool) -> void:
-	if _fight_finished:
+	if _fight_finished or _between_rounds:
 		return
 	if guard_broken:
 		feedback.text = "¡Guardia rota! Retrocedé; estás expuesto un instante."
@@ -369,7 +376,7 @@ func _on_dummy_health_changed(current: float, maximum: float) -> void:
 	_on_dummy_recoverable_changed(dummy.health.recoverable_health)
 	if current <= 0.0:
 		if sparring_enabled:
-			_finish_fight("¡Ganaste por nocaut!")
+			_win_round(true)
 		else:
 			feedback.text = "Muñeco derrotado. Presioná R para reiniciar."
 
@@ -379,7 +386,7 @@ func _on_player_health_changed(current: float, maximum: float) -> void:
 	$HUD/PlayerHealthLabel.text = "JUGADOR  %.0f / %.0f" % [current, maximum]
 	_on_player_recoverable_changed(player.health.recoverable_health)
 	if current <= 0.0 and sparring_enabled:
-		_finish_fight("Fin del sparring: perdiste por nocaut.")
+		_win_round(false)
 
 func _on_player_recoverable_changed(amount: float) -> void:
 	$HUD/PlayerRecoverable.max_value = player.health.max_health

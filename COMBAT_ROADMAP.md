@@ -30,7 +30,7 @@ Estas mecánicas existen; todavía necesitan ajustes y validación de sensación
 | 9 | Posición y cuerdas | Salidas laterales y presión en las esquinas | Ajuste inicial probado en las cuatro esquinas |
 | 10 | Rival más humano | Variar las respuestas a ataques visibles y elegir entre tres estilos | Implementado y probado. Falta ajustar jugando |
 | 11 | Sensación y controles | Afinar pausas, señales, audio provisional y comodidad con varios dedos | Ajuste inicial probado. Falta probar en iPhone |
-| 12 | Reglas del encuentro | Definir duración, rounds y victoria para el prototipo; conservar reinicio rápido | Implementado y probado. Falta valorar la duración jugando |
+| 12 | Reglas del encuentro | Asaltos sin reloj, victoria al ganar dos y reinicio rápido | Implementado y probado. Falta valorar la duración jugando |
 | 13 | Pausa del juego | Botón touch y Escape para pausar/reanudar; congelar combate, IA y reserva amarilla, y limpiar entradas al volver | Implementada con regreso al inicio y pausa por cambio de app/orientación |
 
 ## Primeros ajustes propuestos
@@ -121,9 +121,9 @@ Un bloqueo efectivo produce un arco azul y un sonido más agudo y suave. Los imp
 
 ### Reglas del encuentro
 
-Sparring de tres asaltos de 60 segundos, con descansos de 5 segundos. En cada descanso se detiene el combate y se conserva la vida y la reserva amarilla. Al empezar el siguiente asalto, ambos vuelven a sus posiciones iniciales y recuperan hasta 60 de estamina. El nocaut termina el encuentro de inmediato. Si se agota el tiempo, gana quien conserve el mayor porcentaje de vida real. La igualdad da empate. Práctica continúa sin reloj.
+El sparring se juega sin reloj. Cada nocaut suma un punto y gana el primero en llegar a dos. El marcador muestra dos puntos por lado y el número de asalto. Tras un descanso de dos segundos, ambos vuelven a sus posiciones iniciales con la vida y la estamina completas y la reserva amarilla vacía.
 
-`rounds_smoke.gd` verifica reloj y pausa, descanso, estamina, decisión, empate y reinicio. Pasaron las 18 pruebas.
+`rounds_smoke.gd` verifica que no haya límite de tiempo, la pausa durante el descanso, el marcador, la restauración de vida y estamina, el tercer asalto y el reinicio. Pasaron las 18 pruebas.
 
 ### Pausa del juego
 

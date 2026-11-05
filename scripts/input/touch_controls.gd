@@ -40,14 +40,18 @@ func configure_layout(ring: Rect2, viewport_size: Vector2, safe_area: Rect2 = Re
 	var side_width: float = ring.position.x - safe_area.position.x
 	var control_scale: float = clampf(side_width / 340.0, 0.55, 1.0)
 	joystick_radius = 90.0 * control_scale
-	button_radius = 48.0 * control_scale
 	joystick_center = safe_area.position + Vector2(side_width * 0.5, safe_area.size.y * 0.61)
-	var right_center := safe_area.position + Vector2(safe_area.size.x - side_width * 0.5, safe_area.size.y * 0.55)
+	var panel_top: float = safe_area.position.y + 144.0
+	var panel_bottom: float = safe_area.end.y - (180.0 if safe_area.size.y >= 650.0 else 36.0)
+	var right_width: float = safe_area.end.x - ring.end.x
+	button_radius = maxf(8.0, minf(68.0, minf((right_width - 32.0) / 4.9, (panel_bottom - panel_top) / 4.9)))
+	var right_center := Vector2(ring.end.x + right_width * 0.5, (panel_top + panel_bottom) * 0.5)
+	var spacing := Vector2(button_radius * 1.25, button_radius * 1.25)
 	button_centers = {
-		&"jab": right_center + Vector2(-55, -60) * control_scale,
-		&"cross": right_center + Vector2(55, -60) * control_scale,
-		&"dodge": right_center + Vector2(-55, 60) * control_scale,
-		&"block": right_center + Vector2(55, 60) * control_scale,
+		&"cross": right_center + spacing * Vector2(-1, -1),
+		&"jab": right_center + spacing * Vector2(1, -1),
+		&"block": right_center + spacing * Vector2(-1, 1),
+		&"dodge": right_center + spacing * Vector2(1, 1),
 	}
 	queue_redraw()
 
@@ -163,7 +167,7 @@ func _draw() -> void:
 			draw_arc(center, button_radius - 5, -PI * 0.5, -PI * 0.5 + TAU * _dodge_cooldown_ratio, 48, Color("8de8cc"), 2.0, true)
 		if action == &"cross" and _charging:
 			draw_arc(center, button_radius + 7, -PI * 0.5, -PI * 0.5 + TAU * maxf(_charge_ratio, 0.001), 48, Color("fff3ae"), 4.0, true)
-		var font_size: int = clampi(roundi(button_radius * 0.4), 12, 19)
+		var font_size: int = clampi(roundi(button_radius * 0.4), 12, 24)
 		if action == &"jab" or action == &"cross":
 			_draw_text(String(action).to_upper(), center + Vector2(0, 1), font_size, Color.WHITE)
 			var hand: String = "IZQ." if action == &"jab" else "DER."

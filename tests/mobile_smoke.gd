@@ -46,9 +46,12 @@ func _run() -> void:
 		await _frames(3)
 		var ring: Rect2 = scene.ring_rect
 		_expect(is_equal_approx(ring.size.x, ring.size.y), "El ring debe conservar su forma cuadrada.")
+		_expect(ring.position.y - 18.0 >= scene.get_node("HUD/HeaderBackground").get_rect().end.y, "Las cuerdas superiores deben quedar debajo del encabezado.")
 		_expect(controls.joystick_center.x + controls.joystick_radius < ring.position.x, "El joystick debe quedar fuera del ring.")
 		for center: Vector2 in controls.button_centers.values():
 			_expect(center.x - controls.button_radius > ring.end.x, "Los botones deben quedar fuera del ring.")
+		_expect(controls.button_centers[&"cross"].x < controls.button_centers[&"jab"].x and controls.button_centers[&"block"].x < controls.button_centers[&"dodge"].x, "CROSS y BLOCK deben quedar a la izquierda del grupo.")
+		_expect(controls.button_centers[&"cross"].distance_to(controls.button_centers[&"jab"]) > controls.button_radius * 2.2, "Las áreas táctiles deben quedar separadas.")
 		_expect(ring.has_point(player.position) and ring.has_point(dummy.position), "Los personajes deben seguir dentro del ring al redimensionar.")
 
 	root.size = Vector2i(1280, 720)

@@ -110,6 +110,7 @@ func _run() -> void:
 	player.set_touch_direction(Vector2.ZERO)
 
 	# Victoria y derrota detienen las acciones, incluso si quedan entradas pendientes.
+	scene._player_round_wins = 1
 	opponent.health.apply_damage(9999.0)
 	_expect(scene._fight_finished and not player.combat_enabled and not opponent.combat_enabled, "Derrotar al rival debe terminar el sparring.")
 	_expect(not player.request_jab() and not opponent.request_jab(), "No deben seguir atacando después del resultado.")
@@ -122,6 +123,7 @@ func _run() -> void:
 	root.add_child(second_scene)
 	current_scene = second_scene
 	await _frames(3)
+	second_scene._rival_round_wins = 1
 	second_scene.get_node("Player/Health").apply_damage(9999.0)
 	_expect(second_scene._fight_finished and second_scene.get_node("HUD/Feedback").text.contains("perdiste"), "La derrota del jugador debe mostrar resultado y detener la pelea.")
 	second_scene.queue_free()

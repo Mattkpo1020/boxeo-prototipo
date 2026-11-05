@@ -74,7 +74,7 @@ func _run() -> void:
 	player.set_touch_cross(true)
 	await _frames(12)
 	rival.health.apply_damage(9999.0)
-	_expect(sparring._fight_finished, "El KO del rival debe cerrar el asalto.")
+	_expect(sparring._between_rounds, "El KO del rival debe cerrar el asalto.")
 	_expect(not player.is_hit_paused() and player.attack_state == player.AttackState.IDLE, "El resultado debe limpiar carga, cola y pausa local.")
 	var starts_at_ko: int = _starts
 	player.set_touch_cross(false)
