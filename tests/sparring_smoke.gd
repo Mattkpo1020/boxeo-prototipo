@@ -93,8 +93,8 @@ func _run() -> void:
 
 	# La preparación permite salir de alcance antes del jab.
 	opponent.stop_combat()
-	player.position = scene.ring_rect.get_center() - Vector2(28, 0)
-	opponent.position = scene.ring_rect.get_center() + Vector2(28, 0)
+	player.position = scene.ring_rect.get_center() - Vector2(32, 0)
+	opponent.position = scene.ring_rect.get_center() + Vector2(32, 0)
 	opponent._cooldown_left = 0.0
 	opponent._decision_left = 0.0
 	opponent._set_brain_state(opponent.BrainState.MEASURE)
@@ -102,7 +102,7 @@ func _run() -> void:
 		if opponent.brain_state == opponent.BrainState.TELEGRAPH:
 			break
 		await _frames(1)
-	before = _enemy_attacks
+	_expect(opponent.brain_state == opponent.BrainState.TELEGRAPH, "El rival debe preparar el golpe antes de probar la retirada.")
 	var life_before_escape: float = player.health.current_health
 	player.set_touch_direction(Vector2.LEFT)
 	await _frames(15)

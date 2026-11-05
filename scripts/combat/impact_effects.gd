@@ -64,6 +64,9 @@ func _draw() -> void:
 			continue
 		var color := Color("fff3ae") if not strong else Color("ffbd69")
 		color.a = 1.0 - progress
+		var damage_ring := Color("ff695e")
+		damage_ring.a = 1.0 - progress
+		draw_arc(point + direction * 12.0, 19.0 + progress * 15.0, 0.0, TAU, 24, damage_ring, 3.0, true)
 		if age < 0.055:
 			draw_rect(Rect2(point.round() - Vector2(9, 2), Vector2(18, 4)), Color.WHITE)
 			draw_rect(Rect2(point.round() - Vector2(2, 9), Vector2(4, 18)), Color.WHITE)

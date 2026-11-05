@@ -692,7 +692,8 @@ func _check_attack_hits() -> void:
 			else:
 				_combo_tracker.reset()
 			var was_blocked: bool = is_instance_valid(defender) and defender._last_hit_blocked
-			hit_landed.emit(fist_position, _attack_direction, _attack, was_blocked)
+			var contact_point: Vector2 = hurtbox.global_position - _attack_direction * 12.0
+			hit_landed.emit(contact_point, _attack_direction, _attack, was_blocked)
 			if combo != null:
 				combo_connected.emit(combo.title, damage - _attack.damage, fist_position)
 			if counter:
@@ -807,9 +808,15 @@ func _draw() -> void:
 	draw_circle(Vector2(-3, 0), 8.0, Color("b0ead1"))
 	draw_set_transform(Vector2.ZERO)
 	draw_line(body_center, body_center + shoulder_direction * 19.0, Color("e2fff5"), 2.0)
-	# Trazo corto durante el contacto: ayuda a leer la velocidad del guante.
+	# Las estelas distinguen el jab frontal del giro del cross.
 	if attack_state == AttackState.ACTIVE:
-		draw_line(facing_direction * 20.0 + side, fist, Color(1.0, 0.85, 0.55, 0.45), 5.0)
+		if _attack.attack_id == &"jab":
+			draw_line(facing_direction * 19.0 + side + _visual_recoil_offset, fist, Color("b6f6ff"), 5.0, true)
+		else:
+			var sweep: Vector2 = fist - _visual_recoil_offset
+			var end_angle: float = sweep.angle()
+			var start_angle: float = end_angle + signf(facing_direction.cross(side)) * 0.85
+			draw_arc(_visual_recoil_offset, sweep.length(), start_angle, end_angle, 16, Color("ffbd69"), 6.0, true)
 	draw_circle(fist, _attack.radius + 1, Color("252638"))
 	draw_circle(fist, _attack.radius, glove_color)
 	draw_circle(resting_fist, _attack.radius, glove_color if is_blocking else Color("ff786d"))

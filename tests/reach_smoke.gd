@@ -35,8 +35,8 @@ func _run() -> void:
 	player.target = null
 	for hand in ["jab", "cross"]:
 		var damage: float = player.jab.damage if hand == "jab" else player.cross.damage
-		var extended_distance: float = 70.0 if hand == "jab" else 76.0
-		var miss_distance: float = 75.0 if hand == "jab" else 82.0
+		var extended_distance: float = 80.0 if hand == "jab" else 76.0
+		var miss_distance: float = 85.0 if hand == "jab" else 82.0
 		for angle in [0.0, PI * 0.5, PI * 0.25, PI]:
 			var direction := Vector2.RIGHT.rotated(angle)
 			for distance in [38.0, 50.0, extended_distance, miss_distance]:
