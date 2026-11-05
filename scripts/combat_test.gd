@@ -189,15 +189,14 @@ func _layout_arena() -> void:
 		control.position += safe_area.position
 	$HUD/ComboMessage.position = Vector2(ring_rect.position.x - 50, ring_rect.end.y + 8)
 	$HUD/ComboMessage.size = Vector2(side + 100, 24)
-	$HUD/ComboGuide.position = Vector2(ring_rect.end.x + 28, safe_area.end.y - 180)
-	$HUD/ComboGuide.size = Vector2(safe_area.end.x - ring_rect.end.x - 56, 120)
-	# En pantallas horizontales bajas se reserva este espacio para los cuatro botones.
-	$HUD/ComboGuide.visible = viewport_size.y >= 650.0
+	var combo_guide: Label = $HUD/ComboGuide
+	combo_guide.position = Vector2(ring_rect.end.x + 28, safe_area.position.y + 152)
+	combo_guide.size = Vector2(safe_area.end.x - ring_rect.end.x - 56, combo_guide.get_minimum_size().y)
 	feedback.position = Vector2(ring_rect.position.x - 50, ring_rect.end.y + 33)
 	feedback.size = Vector2(side + 100, 20)
 	$HUD/Help.position = Vector2(safe_area.position.x, safe_area.end.y - 26)
 	$HUD/Help.size = Vector2(viewport_size.x, 24)
-	touch_controls.configure_layout(ring_rect, full_size, safe_area)
+	touch_controls.configure_layout(ring_rect, full_size, safe_area, combo_guide.get_rect().end.y + 12.0)
 	queue_redraw()
 
 func release_combat_inputs() -> void:

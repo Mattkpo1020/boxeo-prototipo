@@ -33,7 +33,7 @@ func set_cross_charge(ratio: float, charging: bool) -> void:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func configure_layout(ring: Rect2, viewport_size: Vector2, safe_area: Rect2 = Rect2()) -> void:
+func configure_layout(ring: Rect2, viewport_size: Vector2, safe_area: Rect2, panel_top: float) -> void:
 	release_all()
 	if not safe_area.has_area():
 		safe_area = Rect2(Vector2.ZERO, viewport_size)
@@ -41,11 +41,10 @@ func configure_layout(ring: Rect2, viewport_size: Vector2, safe_area: Rect2 = Re
 	var control_scale: float = clampf(side_width / 340.0, 0.55, 1.0)
 	joystick_radius = 90.0 * control_scale
 	joystick_center = safe_area.position + Vector2(side_width * 0.5, safe_area.size.y * 0.61)
-	var panel_top: float = safe_area.position.y + 144.0
-	var panel_bottom: float = safe_area.end.y - (180.0 if safe_area.size.y >= 650.0 else 36.0)
+	var panel_bottom: float = safe_area.end.y - 36.0
 	var right_width: float = safe_area.end.x - ring.end.x
 	button_radius = maxf(8.0, minf(68.0, minf((right_width - 32.0) / 4.9, (panel_bottom - panel_top) / 4.9)))
-	var right_center := Vector2(ring.end.x + right_width * 0.5, (panel_top + panel_bottom) * 0.5)
+	var right_center := Vector2(ring.end.x + right_width * 0.5, panel_bottom - button_radius * 2.45)
 	var spacing := Vector2(button_radius * 1.25, button_radius * 1.25)
 	button_centers = {
 		&"cross": right_center + spacing * Vector2(-1, -1),
