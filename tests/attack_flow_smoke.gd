@@ -40,6 +40,34 @@ func _measure_pair(player: Node, first: BoxingAttack, second: BoxingAttack) -> f
 	player.punch_started.disconnect(on_start)
 	return interval
 
+func _check_burst(player: FighterBody) -> void:
+	player.stamina = 100.0
+	var starts: Array[int] = []
+	var on_start := func(_direction: Vector2): starts.append(Engine.get_physics_frames())
+	player.punch_started.connect(on_start)
+	_expect(player.request_cross(), "Debe iniciar el cross de la ráfaga.")
+	for index in 60:
+		if player.attack_state == FighterBody.AttackState.RECOVERY and player.remaining_recovery(player.jab) <= 0.20:
+			break
+		await _frame()
+	_expect(player.remaining_recovery(player.jab) > 0.14, "La prueba debe pulsar antes del margen anterior.")
+	_expect(player.request_jab(), "Debe guardar el cambio de mano antes.")
+	var queued_after: int = 1
+	for index in 180:
+		if starts.size() >= 5:
+			break
+		if starts.size() > queued_after and player.request_jab():
+			queued_after = starts.size()
+		await _frame()
+	_expect(starts.size() == 5, "La ráfaga debe conservar las pulsaciones válidas.")
+	if starts.size() == 5:
+		var normal_interval: int = starts[2] - starts[1]
+		var breather_interval: int = starts[3] - starts[2]
+		_expect(breather_interval >= normal_interval + 10, "El tercer golpe debe dejar una salida antes del cuarto.")
+		_expect(starts[4] - starts[3] == normal_interval, "El ritmo normal debe volver al empezar la próxima ráfaga.")
+	_expect(is_equal_approx(player.stamina, 46.0), "El cambio de ritmo no debe alterar los costes.")
+	player.punch_started.disconnect(on_start)
+
 func _run() -> void:
 	var scene: Node = load("res://scenes/combat_test.tscn").instantiate()
 	root.add_child(scene)
@@ -63,6 +91,7 @@ func _run() -> void:
 	_expect(jab_cross > player.jab.windup + player.jab.active, "Alternar no debe cancelar la fase activa del jab.")
 	_expect(cross_jab > player.cross.windup + player.cross.active, "Alternar debe conservar recuperación tras el cross.")
 	_expect(player.jab.damage < player.cross.damage and player.jab.stamina_cost < player.cross.stamina_cost, "El jab debe ser más ligero y económico.")
+	await _check_burst(player)
 	_expect(is_equal_approx(scene.get_node("TrainingDummy/Health").current_health, 100.0), "Las secuencias fuera de alcance no deben hacer daño.")
 	print("CADENCE (s): jab-jab=", jab_jab, " jab-cross=", jab_cross, " cross-cross=", cross_cross, " cross-jab=", cross_jab)
 	scene.queue_free()

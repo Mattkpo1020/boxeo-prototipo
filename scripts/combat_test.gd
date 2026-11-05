@@ -4,6 +4,10 @@ const ViewportLayout = preload("res://scripts/ui/mobile_viewport.gd")
 const PauseController = preload("res://scripts/ui/combat_pause.gd")
 
 @export var sparring_enabled: bool = false
+@export_range(1, 12) var total_rounds: int = 3
+@export_range(1.0, 180.0) var round_duration: float = 60.0
+@export_range(1.0, 60.0) var break_duration: float = 5.0
+const ROUND_BREAK_STAMINA: float = 60.0
 
 @onready var player: CharacterBody2D = $Player
 @onready var stamina_bar: ProgressBar = $HUD/Stamina
@@ -15,7 +19,14 @@ const PauseController = preload("res://scripts/ui/combat_pause.gd")
 var ring_rect := Rect2(360, 80, 560, 560)
 var _layout_initialized: bool = false
 var _fight_finished: bool = false
+var _round_number: int = 1
+var _round_time_left: float = 0.0
+var _between_rounds: bool = false
 var _combo_message_left: float = 0.0
+var _player_healed: float = 0.0
+var _rival_healed: float = 0.0
+var _player_heal_notice_left: float = 0.0
+var _rival_heal_notice_left: float = 0.0
 
 func _enter_tree() -> void:
 	# Configuración inicial de acciones: también admite botones touch.
@@ -46,9 +57,11 @@ func _ready() -> void:
 		dummy.punch_swung.connect($ImpactEffects.play_swing)
 		dummy.hit_landed.connect($ImpactEffects.play_impact)
 		dummy.combo_connected.connect(_on_combo_connected.bind(false))
+		dummy.counter_connected.connect(_on_counter_connected.bind(false))
 		dummy.guard_break_changed.connect(_on_guard_break_changed.bind(false))
 		_on_opponent_stamina_changed(dummy.stamina, dummy.max_stamina)
-		$HUD/Title.text = "SPARRING"
+		_round_time_left = round_duration
+		_update_round_clock()
 		$HUD/Feedback.text = "El rival entra, combina y sale. Cortale el paso o contraatacá."
 	if not sparring_enabled:
 		$HUD/Title.text = "PRÁCTICA"
@@ -64,14 +77,17 @@ func _ready() -> void:
 	_on_stamina_changed(player.stamina, player.max_stamina)
 	player.health.health_changed.connect(_on_player_health_changed)
 	player.health.recoverable_changed.connect(_on_player_recoverable_changed)
+	player.health.health_recovered.connect(_on_health_recovered.bind(true))
 	_on_player_health_changed(player.health.current_health, player.health.max_health)
 	dummy.health.health_changed.connect(_on_dummy_health_changed)
 	dummy.health.recoverable_changed.connect(_on_dummy_recoverable_changed)
+	dummy.health.health_recovered.connect(_on_health_recovered.bind(false))
 	_on_dummy_health_changed(dummy.health.current_health, dummy.health.max_health)
 	player.punch_finished.connect(_on_punch_finished)
 	player.punch_swung.connect($ImpactEffects.play_swing)
 	player.hit_landed.connect($ImpactEffects.play_impact)
 	player.combo_connected.connect(_on_combo_connected.bind(true))
+	player.counter_connected.connect(_on_counter_connected.bind(true))
 	touch_controls.movement_changed.connect(player.set_touch_direction)
 	touch_controls.jab_requested.connect(player.request_jab)
 	touch_controls.dodge_requested.connect(player.request_dodge)
@@ -225,11 +241,65 @@ func _layout_fight_hud(viewport_size: Vector2) -> void:
 	$HUD/Versus.position = Vector2(viewport_size.x * 0.5 - center_gap * 0.5, 42)
 	$HUD/Versus.size = Vector2(center_gap, 48)
 
+func _physics_process(delta: float) -> void:
+	if not sparring_enabled or _fight_finished:
+		return
+	var previous_second: int = ceili(_round_time_left)
+	_round_time_left = maxf(0.0, _round_time_left - delta)
+	if _round_time_left > 0.0:
+		if ceili(_round_time_left) != previous_second:
+			_update_round_clock()
+		return
+	if _between_rounds:
+		_start_next_round()
+	elif _round_number < total_rounds:
+		_between_rounds = true
+		_round_time_left = break_duration
+		_set_combat_active(false)
+		feedback.text = "Fin del asalto. Recuperás 60 de energía para el próximo."
+		_update_round_clock()
+	else:
+		var player_fraction: float = player.health.current_health / player.health.max_health
+		var rival_fraction: float = dummy.health.current_health / dummy.health.max_health
+		if is_equal_approx(player_fraction, rival_fraction):
+			_finish_fight("Empate por decisión.")
+		elif player_fraction > rival_fraction:
+			_finish_fight("¡Ganaste por decisión!")
+		else:
+			_finish_fight("Fin del sparring: perdiste por decisión.")
+
+func _update_round_clock() -> void:
+	var seconds: int = ceili(_round_time_left)
+	var clock_text: String = "%d:%02d" % [floori(seconds / 60.0), seconds % 60]
+	$HUD/Title.text = "PAUSA  " + clock_text if _between_rounds else "R%d/%d  %s" % [_round_number, total_rounds, clock_text]
+
+func _start_next_round() -> void:
+	_between_rounds = false
+	_round_number += 1
+	_round_time_left = round_duration
+	var offset := Vector2(ring_rect.size.x * 0.18, 0.0)
+	player.position = ring_rect.get_center() - offset
+	dummy.position = ring_rect.get_center() + offset
+	touch_controls.release_all()
+	player.restore_stamina(ROUND_BREAK_STAMINA)
+	dummy.restore_stamina(ROUND_BREAK_STAMINA)
+	_set_combat_active(true)
+	feedback.text = "¡Asalto %d!" % _round_number
+	_update_round_clock()
+
 func _process(_delta: float) -> void:
 	if _combo_message_left > 0.0:
 		_combo_message_left = maxf(0.0, _combo_message_left - _delta)
 		if _combo_message_left <= 0.0:
 			$HUD/ComboMessage.text = ""
+	if _player_heal_notice_left > 0.0:
+		_player_heal_notice_left = maxf(0.0, _player_heal_notice_left - _delta)
+		if _player_heal_notice_left == 0.0:
+			_on_player_recoverable_changed(player.health.recoverable_health)
+	if _rival_heal_notice_left > 0.0:
+		_rival_heal_notice_left = maxf(0.0, _rival_heal_notice_left - _delta)
+		if _rival_heal_notice_left == 0.0:
+			_on_dummy_recoverable_changed(dummy.health.recoverable_health)
 	if Input.is_action_just_pressed("reset_training"):
 		_restart()
 
@@ -240,6 +310,13 @@ func _on_combo_connected(title: String, bonus_damage: float, _point: Vector2, fr
 	$HUD/ComboMessage.text = ("TU COMBO: " if from_player else "RIVAL: ") + title + "  (+%.1f)" % bonus_damage
 	$HUD/ComboMessage.modulate = Color("fff3ae") if from_player else Color("ffad91")
 
+func _on_counter_connected(bonus_damage: float, from_player: bool) -> void:
+	if _fight_finished:
+		return
+	_combo_message_left = 1.2
+	$HUD/ComboMessage.text = ("CONTRAATAQUE" if from_player else "CONTRAATAQUE RIVAL") + "  (+%.1f)" % bonus_damage
+	$HUD/ComboMessage.modulate = Color("fff3ae") if from_player else Color("ffad91")
+
 func _restart() -> void:
 	get_tree().reload_current_scene()
 
@@ -248,9 +325,7 @@ func _switch_mode() -> void:
 	get_tree().change_scene_to_file(next_scene)
 
 func _on_opponent_stamina_changed(current: float, maximum: float) -> void:
-	$HUD/OpponentStamina.max_value = maximum
-	$HUD/OpponentStamina.value = current
-	$HUD/OpponentStaminaLabel.text = "ENERGÍA  %.0f / %.0f" % [current, maximum]
+	_update_stamina_hud($HUD/OpponentStamina, $HUD/OpponentStaminaLabel, current, maximum, dummy.is_exhausted())
 
 func _on_brain_state_changed(label: String) -> void:
 	$HUD/BrainState.text = "RIVAL: " + label
@@ -269,18 +344,23 @@ func _on_guard_break_changed(broken: bool, from_player: bool) -> void:
 	var label: Label = $HUD/PlayerDefense if from_player else $HUD/OpponentDefense
 	label.text = "GUARDIA ROTA" if broken else ""
 
-func _finish_fight(player_won: bool) -> void:
+func _finish_fight(result: String) -> void:
 	if _fight_finished:
 		return
 	_fight_finished = true
-	player.combat_enabled = false
-	player.health.recovery_active = false
-	player.stop_combat()
-	dummy.combat_enabled = false
-	dummy.health.recovery_active = false
-	dummy.stop_combat()
-	touch_controls.release_all()
-	feedback.text = ("¡Ganaste el sparring!" if player_won else "Fin del sparring: perdiste.") + " Reiniciá para volver a pelear."
+	_set_combat_active(false)
+	$HUD/Title.text = "RESULTADO"
+	feedback.text = result + " Reiniciá para volver a pelear."
+
+func _set_combat_active(active: bool) -> void:
+	player.combat_enabled = active
+	player.health.recovery_active = active
+	dummy.combat_enabled = active
+	dummy.health.recovery_active = active
+	if not active:
+		player.stop_combat()
+		dummy.stop_combat()
+		touch_controls.release_all()
 
 func _on_dummy_health_changed(current: float, maximum: float) -> void:
 	health_bar.max_value = maximum
@@ -289,7 +369,7 @@ func _on_dummy_health_changed(current: float, maximum: float) -> void:
 	_on_dummy_recoverable_changed(dummy.health.recoverable_health)
 	if current <= 0.0:
 		if sparring_enabled:
-			_finish_fight(true)
+			_finish_fight("¡Ganaste por nocaut!")
 		else:
 			feedback.text = "Muñeco derrotado. Presioná R para reiniciar."
 
@@ -299,7 +379,7 @@ func _on_player_health_changed(current: float, maximum: float) -> void:
 	$HUD/PlayerHealthLabel.text = "JUGADOR  %.0f / %.0f" % [current, maximum]
 	_on_player_recoverable_changed(player.health.recoverable_health)
 	if current <= 0.0 and sparring_enabled:
-		_finish_fight(false)
+		_finish_fight("Fin del sparring: perdiste por nocaut.")
 
 func _on_player_recoverable_changed(amount: float) -> void:
 	$HUD/PlayerRecoverable.max_value = player.health.max_health
@@ -307,6 +387,8 @@ func _on_player_recoverable_changed(amount: float) -> void:
 	$HUD/PlayerHealthLabel.text = "JUGADOR  %.0f / %.0f" % [player.health.current_health, player.health.max_health]
 	if amount >= 0.5:
 		$HUD/PlayerHealthLabel.text += "  [+%.0f]" % amount
+	if _player_heal_notice_left > 0.0:
+		$HUD/PlayerHealthLabel.text += "  · CURÓ +%.1f" % _player_healed
 
 func _on_dummy_recoverable_changed(amount: float) -> void:
 	$HUD/DummyRecoverable.max_value = dummy.health.max_health
@@ -314,6 +396,18 @@ func _on_dummy_recoverable_changed(amount: float) -> void:
 	$HUD/DummyLabel.text = ("RIVAL" if sparring_enabled else "MUÑECO") + "  %.0f / %.0f" % [dummy.health.current_health, dummy.health.max_health]
 	if amount >= 0.5:
 		$HUD/DummyLabel.text += "  [+%.0f]" % amount
+	if _rival_heal_notice_left > 0.0:
+		$HUD/DummyLabel.text += "  · CURÓ +%.1f" % _rival_healed
+
+func _on_health_recovered(amount: float, from_player: bool) -> void:
+	if from_player:
+		_player_healed = amount
+		_player_heal_notice_left = 1.0
+		_on_player_recoverable_changed(player.health.recoverable_health)
+	else:
+		_rival_healed = amount
+		_rival_heal_notice_left = 1.0
+		_on_dummy_recoverable_changed(dummy.health.recoverable_health)
 
 func _on_punch_finished(connected: bool) -> void:
 	if _fight_finished or dummy.health.current_health <= 0.0:
@@ -339,9 +433,15 @@ func _bind_key(action: StringName, key: Key) -> void:
 		InputMap.action_add_event(action, event)
 
 func _on_stamina_changed(current: float, maximum: float) -> void:
-	stamina_bar.max_value = maximum
-	stamina_bar.value = current
-	$HUD/StaminaLabel.text = "ENERGÍA  %.0f / %.0f" % [current, maximum]
+	_update_stamina_hud(stamina_bar, $HUD/StaminaLabel, current, maximum, player.is_exhausted())
+
+func _update_stamina_hud(bar: ProgressBar, label: Label, current: float, maximum: float, exhausted: bool) -> void:
+	bar.max_value = maximum
+	bar.value = current
+	label.text = "ENERGÍA  %.0f / %.0f" % [current, maximum]
+	if exhausted:
+		label.text += "  · SIN AIRE"
+	label.modulate = Color("ffc075") if exhausted else Color.WHITE
 
 func _draw() -> void:
 	draw_rect(ring_rect, Color("21344a"))

@@ -5,12 +5,20 @@ signal stamina_changed(current: float, maximum: float)
 signal punch_started(direction: Vector2)
 signal punch_finished(connected: bool)
 signal punch_swung(attack: BoxingAttack)
-signal hit_landed(point: Vector2, direction: Vector2, attack: BoxingAttack)
+signal hit_landed(point: Vector2, direction: Vector2, attack: BoxingAttack, blocked: bool)
 signal cross_charge_changed(ratio: float, charging: bool)
 signal defense_resolved(blocked: bool, guard_broken: bool)
 signal guard_break_changed(broken: bool)
 signal dodge_cooldown_changed(remaining: float, total: float)
 signal combo_connected(title: String, bonus_damage: float, point: Vector2)
+signal counter_connected(bonus_damage: float)
+
+const COUNTER_WINDOW: float = 0.45
+const COUNTER_DAMAGE_SCALE: float = 1.25
+const ALTERNATE_BUFFER_EXTRA: float = 0.06
+const BURST_LIMIT: int = 3
+const BURST_RECOVERY_EXTRA: float = 0.18
+const EXHAUSTION_RECOVERY_RATIO: float = 0.12
 
 enum AttackState { IDLE, WINDUP, ACTIVE, RECOVERY, CHARGING, CROSS_PENDING, DODGING, DODGE_RECOVERY }
 
@@ -72,7 +80,7 @@ var is_blocking: bool = false
 var _touch_block_held: bool = false
 var _attack: BoxingAttack
 var _regen_time_left: float = 0.0
-var _sprint_exhausted: bool = false
+var _exhausted: bool = false
 var _touch_direction: Vector2 = Vector2.ZERO
 var _attack_elapsed: float = 0.0
 var _attack_direction: Vector2 = Vector2.RIGHT
@@ -100,6 +108,12 @@ var _combo_tracker := ComboTracker.new()
 var _redraw_busy: bool = true
 @onready var health: HealthComponent = $Health
 
+var _counter_time_left: float = 0.0
+var _counter_target_id: int = 0
+var _miss_punished: bool = false
+var _evaded_targets: Dictionary = {}
+var _burst_count: int = 0
+
 func _ready() -> void:
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 	_combo_tracker.configure(combos, combo_hit_window)
@@ -122,6 +136,7 @@ func _physics_process(delta: float) -> void:
 	# La pulsación pendiente comparte el reloj local de la recuperación.
 	if _impact_pause_left <= 0.0:
 		_combo_tracker.advance(delta)
+		_counter_time_left = maxf(0.0, _counter_time_left - delta)
 		_buffer_left = maxf(0.0, _buffer_left - delta)
 	if _buffer_left <= 0.0:
 		clear_queued_attack()
@@ -151,20 +166,15 @@ func _physics_process(delta: float) -> void:
 			is_blocking = attack_state == AttackState.IDLE and _is_block_held()
 			guard_break_changed.emit(false)
 	_visual_recoil_offset = _visual_recoil_offset.move_toward(Vector2.ZERO, 65.0 * delta)
-	if stamina >= max_stamina * 0.2:
-		_sprint_exhausted = false
 	var running: bool = (
 		_is_sprint_held() and not direction.is_zero_approx()
-		and not _sprint_exhausted and attack_state == AttackState.IDLE and not is_blocking
+		and not is_exhausted() and attack_state == AttackState.IDLE and not is_blocking
 		and not has_guard_break()
 	)
 	var run_cost: float = sprint_drain * delta
 	if running:
-		if stamina >= run_cost:
-			_spend_stamina(run_cost)
-		else:
-			running = false
-			_sprint_exhausted = true
+		running = stamina >= run_cost
+		_spend_stamina(run_cost)
 	var speed: float = sprint_speed if running else walk_speed
 	if is_dodge_busy():
 		speed *= 0.4
@@ -199,6 +209,7 @@ func _physics_process(delta: float) -> void:
 		attack_state != AttackState.IDLE
 		or is_blocking
 		or has_guard_break()
+		or _counter_time_left > 0.0
 		or _damage_flash_left > 0.0
 		or not _visual_recoil_offset.is_zero_approx()
 		or velocity.length_squared() > 4.0
@@ -233,7 +244,7 @@ func get_dodge_cooldown_remaining() -> float:
 	return _dodge_cooldown_left
 
 func request_dodge() -> bool:
-	if not can_fight() or attack_state != AttackState.IDLE or has_guard_break() or is_hit_paused():
+	if not can_fight() or attack_state != AttackState.IDLE or has_guard_break() or is_hit_paused() or is_exhausted():
 		return false
 	if _dodge_cooldown_left > 0.0 or stamina < dodge_cost:
 		return false
@@ -299,6 +310,11 @@ func clear_queued_attack() -> void:
 func stop_combat() -> void:
 	var was_guard_broken: bool = has_guard_break()
 	_combo_tracker.reset()
+	_counter_time_left = 0.0
+	_counter_target_id = 0
+	_miss_punished = false
+	_evaded_targets.clear()
+	_burst_count = 0
 	cancel_cross_charge()
 	attack_state = AttackState.IDLE
 	clear_queued_attack()
@@ -320,7 +336,9 @@ func stop_combat() -> void:
 	_attack_elapsed = 0.0
 	_charge_elapsed = 0.0
 	_hit_targets.clear()
-	_sprint_exhausted = false
+	if _exhausted:
+		_exhausted = false
+		stamina_changed.emit(stamina, max_stamina)
 	if was_guard_broken:
 		guard_break_changed.emit(false)
 	_queue_fighter_redraw(true)
@@ -352,10 +370,11 @@ func receive_attack(damage: float, direction: Vector2, recoil: float, pause: flo
 			_break_guard()
 			blocked = false
 			broken = true
-	if not health.apply_damage(damage):
+	if not health.apply_damage(damage, not blocked):
 		return false
 	if not blocked:
 		_combo_tracker.reset()
+		_counter_time_left = 0.0
 	# apply_damage puede cerrar el combate mediante señales de KO.
 	# No reintroducir movimiento después de que stop_combat lo haya limpiado.
 	if can_fight():
@@ -414,7 +433,7 @@ func _sync_cross_input() -> void:
 		_release_cross_charge()
 
 func _begin_cross_charge() -> bool:
-	if not can_fight() or _guard_break_left > 0.0:
+	if not can_fight() or _guard_break_left > 0.0 or is_exhausted():
 		return false
 	if _is_block_held() or stamina < cross.stamina_cost:
 		return false
@@ -481,6 +500,7 @@ func cancel_cross_charge() -> void:
 	if attack_state in [AttackState.CHARGING, AttackState.CROSS_PENDING]:
 		var was_charging: bool = attack_state == AttackState.CHARGING
 		attack_state = AttackState.IDLE
+		_burst_count = 0
 		_charge_elapsed = 0.0
 		_regen_time_left = regen_delay
 		if was_charging:
@@ -496,7 +516,7 @@ func request_cross() -> bool:
 	return _request_attack(cross)
 
 func _request_attack(attack: BoxingAttack) -> bool:
-	if not can_fight() or _guard_break_left > 0.0:
+	if not can_fight() or _guard_break_left > 0.0 or is_exhausted():
 		return false
 	if attack_state in [AttackState.CHARGING, AttackState.CROSS_PENDING]:
 		return false
@@ -504,17 +524,23 @@ func _request_attack(attack: BoxingAttack) -> bool:
 		return _start_attack(attack)
 	if _is_block_held():
 		return false
+	var buffer_window: float = input_buffer_window
+	if attack.glove_side != _attack.glove_side:
+		buffer_window += ALTERNATE_BUFFER_EXTRA
 	var remaining: float = _get_recovery_end(attack) - _attack_elapsed
-	if attack_state != AttackState.RECOVERY or remaining > input_buffer_window:
+	if attack_state != AttackState.RECOVERY or remaining > buffer_window:
 		return false
 	_queued_attack = attack
 	_queued_charge = false
-	_buffer_left = input_buffer_window
+	# La cola se revisa al inicio del paso y la recuperación al final.
+	_buffer_left = buffer_window + get_physics_process_delta_time()
 	return true
 
 func _get_recovery_end(next_attack: BoxingAttack = null) -> float:
 	var recovery: float = _attack.recovery
-	if next_attack != null and next_attack.glove_side != _attack.glove_side:
+	if _burst_count >= BURST_LIMIT:
+		recovery += BURST_RECOVERY_EXTRA
+	elif next_attack != null and next_attack.glove_side != _attack.glove_side:
 		if stamina >= next_attack.stamina_cost and not _is_block_held():
 			recovery = maxf(0.04, recovery - _attack.alternate_recovery_credit)
 	return _attack.windup + _attack.active + recovery
@@ -539,7 +565,7 @@ func try_cross() -> bool:
 	return _start_attack(cross)
 
 func _start_attack(attack: BoxingAttack) -> bool:
-	if not can_fight() or _guard_break_left > 0.0:
+	if not can_fight() or _guard_break_left > 0.0 or is_exhausted():
 		return false
 	if attack_state != AttackState.IDLE or _is_block_held():
 		return false
@@ -554,8 +580,18 @@ func _start_attack(attack: BoxingAttack) -> bool:
 	_attack_direction = facing_direction
 	_hit_targets.clear()
 	attack_state = AttackState.WINDUP
+	_burst_count += 1
+	_evaded_targets.clear()
+	_miss_punished = false
 	punch_started.emit(_attack_direction)
 	return true
+
+func _is_open_to_counter() -> bool:
+	return attack_state == AttackState.RECOVERY and _hit_targets.is_empty() and not _miss_punished
+
+func _open_dodge_counter(attacker_id: int) -> void:
+	_counter_target_id = attacker_id
+	_counter_time_left = COUNTER_WINDOW
 
 func _update_attack(delta: float) -> void:
 	if is_dodge_busy():
@@ -567,6 +603,7 @@ func _update_attack(delta: float) -> void:
 		_regen_time_left = regen_delay
 		if _charge_elapsed >= charge_tap_grace:
 			attack_state = AttackState.CHARGING
+			_burst_count = 0
 			cross_charge_changed.emit(get_cross_charge_ratio(), true)
 		return
 	if attack_state == AttackState.CHARGING:
@@ -587,7 +624,8 @@ func _update_attack(delta: float) -> void:
 	if _attack_elapsed >= _attack.windup and previous_time < active_end:
 		_check_attack_hits()
 	if _attack_elapsed >= _get_recovery_end(_queued_attack):
-		if _hit_targets.is_empty():
+		var burst_complete: bool = _burst_count >= BURST_LIMIT
+		if _hit_targets.is_empty() or burst_complete:
 			_combo_tracker.reset()
 		attack_state = AttackState.IDLE
 		punch_finished.emit(not _hit_targets.is_empty())
@@ -595,11 +633,15 @@ func _update_attack(delta: float) -> void:
 		var begin_charge: bool = _queued_charge and _cross_input_held
 		var buffer_valid: bool = _buffer_left > 0.0
 		clear_queued_attack()
+		if burst_complete:
+			_burst_count = 0
 		if next_attack != null and buffer_valid:
 			if begin_charge:
-				_begin_cross_charge()
-			else:
-				_start_attack(next_attack)
+				if _begin_cross_charge():
+					return
+			elif _start_attack(next_attack):
+				return
+		_burst_count = 0
 	elif _attack_elapsed >= active_end:
 		attack_state = AttackState.RECOVERY
 	elif _attack_elapsed >= _attack.windup:
@@ -623,10 +665,21 @@ func _check_attack_hits() -> void:
 		var target_id: int = hurtbox.health.get_instance_id()
 		if _hit_targets.has(target_id):
 			continue
+		var defender := hurtbox.defender as FighterBody
+		if is_instance_valid(defender) and defender.is_evading():
+			if not _evaded_targets.has(target_id):
+				_evaded_targets[target_id] = true
+				defender._open_dodge_counter(health.get_instance_id())
+			continue
 		var guarded: bool = hurtbox.is_guarding(_attack_direction)
 		var eligible: bool = not guarded and _attack.charge_ratio <= 0.0
 		var combo: BoxingCombo = _combo_tracker.preview(_attack.attack_id, target_id) if eligible else null
+		var punish_miss: bool = is_instance_valid(defender) and defender._is_open_to_counter()
+		var punish_dodge: bool = _counter_time_left > 0.0 and _counter_target_id == target_id
+		var counter: bool = eligible and combo == null and (punish_miss or punish_dodge)
 		var damage: float = _attack.damage * (combo.finisher_damage_scale if combo != null else 1.0)
+		if counter:
+			damage *= COUNTER_DAMAGE_SCALE
 		var health_before_hit: float = hurtbox.health.current_health
 		if hurtbox.receive_hit(damage, _attack_direction, _attack.visual_recoil, _attack.impact_pause, _attack.get_knockback_speed(damage)):
 			if not guarded:
@@ -638,9 +691,16 @@ func _check_attack_hits() -> void:
 				_combo_tracker.record_clean_hit(_attack.attack_id, target_id)
 			else:
 				_combo_tracker.reset()
-			hit_landed.emit(fist_position, _attack_direction, _attack)
+			var was_blocked: bool = is_instance_valid(defender) and defender._last_hit_blocked
+			hit_landed.emit(fist_position, _attack_direction, _attack, was_blocked)
 			if combo != null:
 				combo_connected.emit(combo.title, damage - _attack.damage, fist_position)
+			if counter:
+				if punish_dodge:
+					_counter_time_left = 0.0
+				if punish_miss and is_instance_valid(defender):
+					defender._miss_punished = true
+				counter_connected.emit(damage - _attack.damage)
 
 func _queue_fighter_redraw(busy: bool) -> void:
 	if busy or _redraw_busy:
@@ -651,11 +711,19 @@ func _spend_stamina(amount: float) -> void:
 	_set_stamina(stamina - amount)
 	_regen_time_left = regen_delay
 
+func restore_stamina(amount: float) -> void:
+	_set_stamina(stamina + maxf(0.0, amount))
+
+func is_exhausted() -> bool:
+	return stamina <= 0.0 or (_exhausted and stamina < max_stamina * EXHAUSTION_RECOVERY_RATIO)
+
 func _set_stamina(value: float) -> void:
 	var next_value: float = clampf(value, 0.0, max_stamina)
-	if is_equal_approx(next_value, stamina):
+	if next_value == stamina:
 		return
 	stamina = next_value
+	# Una reserva que tocó cero debe recuperarse antes de volver a gastar.
+	_exhausted = is_exhausted()
 	stamina_changed.emit(stamina, max_stamina)
 
 func _draw() -> void:
@@ -665,6 +733,8 @@ func _draw() -> void:
 	var twist: float = 0.0
 	var reach: float = 19.0
 	var glove_color := Color("ff786d")
+	if _counter_time_left > 0.0:
+		draw_arc(Vector2.ZERO, 34.0, -PI * 0.5, -PI * 0.5 + TAU * (_counter_time_left / COUNTER_WINDOW), 32, Color("f6be64"), 3.0, true)
 	if is_dodge_busy():
 		var color := Color("8de8cc") if is_evading() else Color("64788e")
 		draw_arc(Vector2.ZERO, 25.0, 0, TAU, 24, color, 2.0, true)
@@ -697,6 +767,9 @@ func _draw() -> void:
 			twist = 0.12 if _attack.glove_side == 1 else -0.28
 			glove_color = Color("fff3ae")
 		AttackState.RECOVERY:
+			if _is_open_to_counter():
+				var angle: float = _attack_direction.angle()
+				draw_arc(Vector2.ZERO, 28.0, angle - 0.75, angle + 0.75, 16, Color("f6be64"), 3.0, true)
 			var progress: float = clampf((_attack_elapsed - _attack.windup - _attack.active) / _attack.recovery, 0.0, 1.0)
 			# Vuelve rápido al principio y se acomoda al final.
 			var eased: float = 1.0 - pow(1.0 - progress, 3.0)

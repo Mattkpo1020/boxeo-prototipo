@@ -37,12 +37,15 @@ func _run() -> void:
 	current_scene = menu
 	await _frames(30)
 	_expect(menu.get_node_or_null("Player") == null and not menu._leaving, "El inicio no debe cargar peleadores ni comenzar el combate solo.")
+	await _tap(menu._style_button.get_global_rect().get_center())
+	_expect("CONTRAGOLPE" in menu._style_button.text, "El selector de rival debe responder al toque.")
 	var play: Button = menu._actions.get_child(0)
 	await _tap(play.get_global_rect().get_center())
 	_expect(current_scene != menu and current_scene.get_node_or_null("Opponent") != null, "El botón inicial debe aceptar un toque real y abrir sparring.")
 	var scene: Node = current_scene
 	var player: FighterBody = scene.get_node("Player")
 	var rival: FighterBody = scene.get_node("Opponent")
+	_expect(rival.get("style") == 1, "El sparring debe usar el estilo elegido en el menú.")
 	var controller: Node = scene.get_node("CombatPause")
 	player.set_touch_cross(true)
 	await _frames(12)
@@ -82,6 +85,15 @@ func _run() -> void:
 	controller.return_to_menu()
 	await _frames(5)
 	_expect(not paused and current_scene.get_node_or_null("Player") == null, "Volver al inicio debe liberar la pausa y sacar el combate.")
+	menu = current_scene
+	_expect("CONTRAGOLPE" in menu._style_button.text, "Volver al inicio debe conservar la selección.")
+	menu._cycle_opponent_style()
+	menu.start_sparring()
+	await _frames(5)
+	var mobile_rival = current_scene.get_node("Opponent")
+	_expect(mobile_rival.style == 2 and mobile_rival.neutral_distance > 112.0, "Movilidad debe entrar al ring con mayor distancia de trabajo.")
+	current_scene.get_node("CombatPause").return_to_menu()
+	await _frames(5)
 	menu = current_scene
 	menu.start_practice()
 	await _frames(5)

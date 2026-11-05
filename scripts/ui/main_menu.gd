@@ -1,11 +1,13 @@
 extends Control
 
 const ViewportLayout = preload("res://scripts/ui/mobile_viewport.gd")
+const OpponentStyle = preload("res://scripts/ai/opponent_style.gd")
 var _title: Label
 var _subtitle: Label
 var _tag: Label
 var _actions: VBoxContainer
 var _update: Button
+var _style_button: Button
 var _leaving: bool = false
 
 func _ready() -> void:
@@ -17,6 +19,8 @@ func _ready() -> void:
 	add_child(_actions)
 	_button("ENTRAR AL RING", Color("f6be64"), start_sparring)
 	_button("PRÁCTICA CON MUÑECO", Color("8de8cc"), start_practice)
+	_style_button = _button("", Color("7bafff"), _cycle_opponent_style)
+	_update_style_label()
 	if OS.has_feature("web"):
 		var standalone: bool = bool(JavaScriptBridge.eval("window.BoxingWeb && window.BoxingWeb.isStandalone()"))
 		if not standalone:
@@ -61,7 +65,7 @@ func _layout() -> void:
 	_title.position = _tag.position + Vector2(-4, 34)
 	_subtitle.position = _title.position + Vector2(4, 115)
 	_actions.size.x = minf(500.0, area.size.x * 0.43)
-	_actions.position = Vector2(area.end.x - inset - _actions.size.x, area.position.y + area.size.y * 0.5 - 158)
+	_actions.position = Vector2(area.end.x - inset - _actions.size.x, area.get_center().y - _actions.get_combined_minimum_size().y * 0.5)
 	queue_redraw()
 
 func _draw() -> void:
@@ -72,6 +76,13 @@ func _draw() -> void:
 
 func start_sparring() -> void:
 	_start("res://scenes/sparring.tscn")
+
+func _cycle_opponent_style() -> void:
+	OpponentStyle.selected = (OpponentStyle.selected + 1) % OpponentStyle.LABELS.size()
+	_update_style_label()
+
+func _update_style_label() -> void:
+	_style_button.text = "RIVAL · %s  ›" % OpponentStyle.LABELS[OpponentStyle.selected]
 
 func start_practice() -> void:
 	_start("res://scenes/combat_test.tscn")
@@ -93,6 +104,7 @@ func _show_install() -> void:
 
 func _show_update() -> void:
 	_update.show()
+	_layout()
 
 func _apply_update() -> void:
 	JavaScriptBridge.pwa_update()

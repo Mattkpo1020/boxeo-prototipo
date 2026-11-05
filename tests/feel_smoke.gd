@@ -49,7 +49,7 @@ func _run() -> void:
 	player.position = dummy.position - Vector2(60, 0)
 	player.punch_started.connect(func(_direction: Vector2): _counts["started"] += 1)
 	player.punch_swung.connect(func(_attack: BoxingAttack): _counts["swings"] += 1)
-	player.hit_landed.connect(func(_point: Vector2, _direction: Vector2, _attack: BoxingAttack): _counts["hits"] += 1)
+	player.hit_landed.connect(func(_point: Vector2, _direction: Vector2, _attack: BoxingAttack, _blocked: bool): _counts["hits"] += 1)
 	await _frames(3)
 	var dummy_position: Vector2 = dummy.position
 	_expect(player.request_jab(), "Debe iniciar el jab.")

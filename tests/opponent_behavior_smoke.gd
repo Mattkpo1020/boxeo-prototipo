@@ -74,6 +74,7 @@ func _run() -> void:
 	opponent._retreat_left = 0.0
 	opponent._observed_attack_state = -1
 	opponent.guard_probability = 1.0
+	opponent.dodge_probability = 0.0
 	opponent.proactive_guard_probability = 0.0
 	opponent.reaction_min = 0.08
 	opponent.reaction_max = 0.08
@@ -120,6 +121,72 @@ func _run() -> void:
 	await _frames(30)
 	_expect(opponent.position.distance_to(corner_position) > 15.0, "Debe buscar una salida lateral cuando queda en una esquina.")
 	_expect(scene.ring_rect.grow(-16).has_point(opponent.position), "Salir de una esquina debe respetar las colisiones.")
+
+	# Si el jugador tapa la cuerda horizontal, debe salir por la vertical
+	# independientemente de qué esquina se esté defendiendo.
+	var playable: Rect2 = scene.ring_rect.grow(-19.0)
+	for inward: Vector2 in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		opponent.stop_combat()
+		player.stop_combat()
+		corner_position = playable.get_center() - playable.size * 0.5 * inward
+		opponent.position = corner_position
+		player.position = corner_position + Vector2(55.0, 16.0) * inward
+		opponent._cooldown_left = 1.0
+		opponent._retreat_left = 0.7
+		opponent._decision_left = 0.0
+		await _frames(24)
+		var travel: Vector2 = (opponent.position - corner_position) * inward
+		_expect(travel.y > 20.0 and travel.y > absf(travel.x), "Debe tomar la cuerda despejada en la esquina %s." % inward)
+		_expect(scene.ring_rect.grow(-16).has_point(opponent.position), "La salida debe mantenerse dentro del ring.")
+	# Una reacción evasiva paga su coste y mueve al rival aunque su caminar esté aislado.
+	opponent.stop_combat()
+	player.stop_combat()
+	player.position = scene.ring_rect.get_center() - Vector2(28, 0)
+	opponent.position = scene.ring_rect.get_center() + Vector2(28, 0)
+	opponent.walk_speed = 0.0
+	opponent.stamina_regen = 0.0
+	opponent.stamina = 300.0
+	opponent.health.reset()
+	opponent._cooldown_left = 999.0
+	opponent._observed_attack_state = -1
+	opponent.guard_probability = 1.0
+	opponent.dodge_probability = 1.0
+	opponent.reaction_min = 0.10
+	opponent.reaction_max = 0.10
+	await _frames(2)
+	var dodge_origin: Vector2 = opponent.position
+	player.set_touch_cross(true)
+	await _frames(2)
+	player.set_touch_cross(false)
+	_expect(not opponent.is_dodge_busy(), "La esquiva rival debe esperar su reacción.")
+	await _frames(9)
+	_expect(opponent.brain_state == opponent.BrainState.DODGE, "El rival debe esquivar al responder al cross de toque.")
+	_expect(is_equal_approx(opponent.stamina, 282.0), "La esquiva rival debe pagar 18 de estamina.")
+	await _frames(16)
+	_expect(opponent.position.distance_to(dodge_origin) > 35.0 and is_equal_approx(opponent.health.current_health, 500.0), "La esquiva debe sacar al rival del golpe.")
+
+	opponent.stop_combat()
+	player.stop_combat()
+	opponent.style = preload("res://scripts/ai/opponent_style.gd").Style.COUNTER
+	opponent._random.seed = 42
+	opponent._circle_change_left = 10.0
+	opponent._cooldown_left = 999.0
+	opponent._observed_attack_state = -1
+	opponent.stamina = 300.0
+	opponent.position = scene.ring_rect.get_center()
+	player.position = opponent.position - Vector2(150.0, 0.0)
+	player.stamina = 300.0
+	player.health.reset()
+	await _frames(2)
+	player.request_cross()
+	for index in 25:
+		await _frames(1)
+		if player.attack_state == player.AttackState.RECOVERY:
+			break
+	player.position = opponent.position - Vector2(56.0, 0.0)
+	opponent._decision_left = 0.0
+	await _frames(12)
+	_expect(is_equal_approx(player.health.current_health, player.health.max_health - 7.5), "El estilo contragolpe debe poder responder a un fallo con un jab premiado.")
 	print("OPPONENT SAMPLE: attacks=", _starts.size(), " cross=", used_cross, " separated=", separated, " lateral=", lateral_motion, " blocks=", _blocks)
 	scene.queue_free()
 	await process_frame

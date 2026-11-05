@@ -8,6 +8,7 @@ signal dodge_requested
 
 const NO_POINTER: int = -2
 const DEAD_ZONE: float = 0.15
+const BUTTON_TOUCH_MARGIN: float = 1.10
 var joystick_center := Vector2.ZERO
 var joystick_radius: float = 90.0
 var button_radius: float = 48.0
@@ -81,7 +82,7 @@ func _press(pointer: int, position_on_screen: Vector2) -> void:
 		_update_stick(position_on_screen)
 		return
 	for action: StringName in button_centers:
-		if position_on_screen.distance_to(button_centers[action]) > button_radius:
+		if position_on_screen.distance_to(button_centers[action]) > button_radius * BUTTON_TOUCH_MARGIN:
 			continue
 		_pointers[pointer] = action
 		match action:

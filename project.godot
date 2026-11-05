@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Boxeo — Prototipo"
 run/main_scene="res://scenes/main_menu.tscn"
-config/icon="res://assets/app_icon.svg"
 config/features=PackedStringArray("4.5")
+config/icon="res://assets/app_icon.svg"
 
 [display]
 
@@ -23,10 +23,6 @@ window/size/window_width_override=1152
 window/size/window_height_override=648
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-
-[input_devices]
-
-pointing/emulate_mouse_from_touch=true
 
 [rendering]
 

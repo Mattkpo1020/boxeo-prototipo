@@ -60,7 +60,10 @@ func _run() -> void:
 	player.set_touch_block(true)
 	await _frames(3)
 	_expect(opponent.request_jab(), "El rival debe usar la misma API de ataques.")
-	await _frames(30)
+	await _frames(8)
+	var effects: Array = scene.get_node("ImpactEffects")._effects
+	_expect(not effects.is_empty() and effects.back()["blocked"], "La guardia debe activar el efecto de bloqueo.")
+	await _frames(22)
 	_expect(is_equal_approx(player.health.current_health, 498.5), "La guardia frontal debe reducir un jab de 6 a 1,5.")
 	_expect(is_equal_approx(player.stamina, 295.2), "Bloquear el jab debe gastar 4,8 de estamina.")
 	_expect(is_equal_approx(scene.get_node("HUD/PlayerHealth").value, 498.5), "La vida visible debe reflejar el daño recibido.")

@@ -80,8 +80,9 @@ func _run() -> void:
 
 	player.position = dummy.position - Vector2(60, 0)
 	await _frames(3)
-	_touch(4, controls.button_centers[&"cross"], true)
-	_touch(4, controls.button_centers[&"cross"], false)
+	var cross_edge: Vector2 = controls.button_centers[&"cross"] + Vector2.RIGHT * controls.button_radius * 1.07
+	_touch(4, cross_edge, true)
+	_touch(4, cross_edge, false)
 	await _frames(42)
 	_expect(is_equal_approx(player.stamina, 70.0), "CROSS debe consumir 22 de estamina.")
 	_expect(is_equal_approx(dummy.health.current_health, 82.0), "CROSS debe hacer 18 de daño una sola vez.")

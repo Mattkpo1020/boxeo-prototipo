@@ -5,6 +5,7 @@ const MAX_EFFECTS: int = 12
 var _effects: Array[Dictionary] = []
 var _swing_sound := AudioStreamPlayer.new()
 var _hit_sound := AudioStreamPlayer.new()
+var _block_sound := AudioStreamPlayer.new()
 
 func _ready() -> void:
 	# Dos sonidos sintetizados una sola vez; sin descargas ni recursos externos.
@@ -15,18 +16,25 @@ func _ready() -> void:
 	_hit_sound.max_polyphony = 3
 	add_child(_swing_sound)
 	add_child(_hit_sound)
+	_block_sound.stream = _hit_sound.stream
+	_block_sound.volume_db = -19.0
+	_block_sound.pitch_scale = 1.5
+	add_child(_block_sound)
 	set_process(false)
 
 func play_swing(attack: BoxingAttack) -> void:
 	_swing_sound.pitch_scale = 1.12 if attack.glove_side == 1 else 0.86
 	_swing_sound.play()
 
-func play_impact(point: Vector2, direction: Vector2, attack: BoxingAttack) -> void:
+func play_impact(point: Vector2, direction: Vector2, attack: BoxingAttack, blocked: bool) -> void:
 	if _effects.size() >= MAX_EFFECTS:
 		_effects.pop_front()
-	_effects.append({"point": point, "direction": direction, "age": 0.0, "strong": attack.glove_side == -1})
-	_hit_sound.pitch_scale = 1.05 if attack.glove_side == 1 else 0.78
-	_hit_sound.play()
+	_effects.append({"point": point, "direction": direction, "age": 0.0, "strong": attack.glove_side == -1, "blocked": blocked})
+	if blocked:
+		_block_sound.play()
+	else:
+		_hit_sound.pitch_scale = 1.05 if attack.glove_side == 1 else 0.78
+		_hit_sound.play()
 	set_process(true)
 	queue_redraw()
 
@@ -48,6 +56,12 @@ func _draw() -> void:
 		var point: Vector2 = effect["point"]
 		var direction: Vector2 = effect["direction"]
 		var strong: bool = effect["strong"]
+		if effect["blocked"]:
+			var blue := Color("7bafff")
+			blue.a = 1.0 - progress
+			var angle: float = direction.angle() + PI
+			draw_arc(point, 7.0 + progress * 14.0, angle - 1.0, angle + 1.0, 12, blue, 3.0, true)
+			continue
 		var color := Color("fff3ae") if not strong else Color("ffbd69")
 		color.a = 1.0 - progress
 		if age < 0.055:

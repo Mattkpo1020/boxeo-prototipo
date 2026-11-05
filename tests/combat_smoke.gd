@@ -58,6 +58,32 @@ func _run() -> void:
 	await _frames(90)
 	_expect(player.stamina > 4.0, "Debe regenerar estamina tras una pausa.")
 
+	# El último jab se ejecuta completo. Recuperar su coste no basta para salir del agotamiento.
+	player.max_stamina = 300.0
+	player.stamina = 8.0
+	player.stamina_regen = 30.0
+	var health_before_last_jab: float = health.current_health
+	_expect(player.request_jab(), "Debe poder gastar hasta el último punto de estamina.")
+	_expect(player.is_exhausted() and "SIN AIRE" in scene.get_node("HUD/StaminaLabel").text, "Al llegar a cero debe aparecer el aviso de agotamiento.")
+	await _frames(76)
+	_expect(is_equal_approx(health.current_health, health_before_last_jab - 6.0), "Agotarse no debe cancelar el jab que se pagó.")
+	_expect(player.stamina >= 18.0 and player.stamina < 36.0, "La prueba debe tener energía parcial antes del umbral de recuperación.")
+	_expect(not player.request_jab() and not player.request_dodge(), "Recuperar el coste de una acción no debe quitar el agotamiento.")
+	player.set_touch_block(true)
+	_expect(player.is_blocking, "Debe poder cubrirse mientras recupera aire.")
+	player.set_touch_block(false)
+	await _frames(40)
+	_expect(not player.is_exhausted() and not ("SIN AIRE" in scene.get_node("HUD/StaminaLabel").text), "Al recuperar 36 debe desaparecer el aviso.")
+	_expect(player.request_jab(), "Debe recuperar el acceso a los ataques.")
+	await _frames(25)
+	player.stamina = 0.1
+	player.set_touch_direction(Vector2.LEFT)
+	Input.action_press("sprint")
+	await _frames(2)
+	Input.action_release("sprint")
+	player.set_touch_direction(Vector2.ZERO)
+	_expect(is_zero_approx(player.stamina) and player.is_exhausted(), "Un sprint sin reserva para otro paso debe agotar la energía restante.")
+
 	# Verifica derrota, rechazo de daño posterior y reinicio del componente.
 	health.apply_damage(1000.0)
 	_expect(is_zero_approx(health.current_health), "La vida no debe bajar de cero.")

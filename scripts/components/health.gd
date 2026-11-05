@@ -20,14 +20,15 @@ var _decay_delay_left: float = 0.0
 func _ready() -> void:
 	reset()
 
-func apply_damage(amount: float) -> bool:
+func apply_damage(amount: float, refresh_recovery_delay: bool = true) -> bool:
 	if amount <= 0.0 or current_health <= 0.0:
 		return false
 	var actual_damage: float = minf(amount, current_health)
 	current_health -= actual_damage
 	if current_health > 0.0 and recovery_active:
+		if refresh_recovery_delay or recoverable_health <= 0.0:
+			_decay_delay_left = recovery_decay_delay
 		recoverable_health = minf(max_health - current_health, recoverable_health + actual_damage * recoverable_fraction)
-		_decay_delay_left = recovery_decay_delay
 	else:
 		recoverable_health = 0.0 # Una derrota no puede revertirse con recuperación.
 	health_changed.emit(current_health, max_health)

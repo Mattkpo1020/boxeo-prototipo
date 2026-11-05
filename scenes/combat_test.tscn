@@ -55,7 +55,7 @@ color = Color(0.035, 0.045, 0.065, 1)
 [node name="Title" type="Label" parent="HUD"]
 offset_left = 30.0
 offset_top = 12.0
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = "PRÁCTICA"
 horizontal_alignment = 1
 
@@ -67,7 +67,7 @@ horizontal_alignment = 1
 [node name="StaminaLabel" type="Label" parent="HUD"]
 offset_left = 650.0
 offset_top = 12.0
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 18
 text = "ESTAMINA"
 
 [node name="Stamina" type="ProgressBar" parent="HUD"]
@@ -86,6 +86,7 @@ horizontal_alignment = 1
 [node name="DummyLabel" type="Label" parent="HUD"]
 offset_left = 30.0
 offset_top = 43.0
+theme_override_font_sizes/font_size = 20
 text = "MUÑECO"
 
 [node name="DummyRecoverable" type="ProgressBar" parent="HUD"]
@@ -104,6 +105,7 @@ offset_left = 530.0
 offset_top = 16.0
 offset_right = 750.0
 offset_bottom = 40.0
+theme_override_font_sizes/font_size = 20
 text = "VIDA"
 
 [node name="PlayerRecoverable" type="ProgressBar" parent="HUD"]
@@ -122,6 +124,7 @@ offset_left = 150.0
 offset_top = 405.0
 offset_right = 810.0
 offset_bottom = 435.0
+theme_override_font_sizes/font_size = 18
 text = "CROSS: tocá para un recto o mantené para cargar y soltá."
 horizontal_alignment = 1
 
@@ -138,7 +141,7 @@ script = ExtResource("4")
 [node name="OpponentStaminaLabel" type="Label" parent="HUD"]
 offset_left = 30.0
 offset_top = 96.0
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 18
 text = "ENERGÍA RIVAL"
 
 [node name="OpponentStamina" type="ProgressBar" parent="HUD"]
@@ -150,6 +153,7 @@ offset_bottom = 140.0
 [node name="BrainState" type="Label" parent="HUD"]
 offset_left = 30.0
 offset_top = 157.0
+theme_override_font_sizes/font_size = 18
 text = "RIVAL: SE ACERCA"
 
 [node name="ModeButton" type="Button" parent="HUD"]
@@ -157,6 +161,7 @@ offset_left = 30.0
 offset_top = 205.0
 offset_right = 310.0
 offset_bottom = 245.0
+theme_override_font_sizes/font_size = 19
 text = "Sparring con rival"
 
 [node name="RestartButton" type="Button" parent="HUD"]
@@ -164,6 +169,7 @@ offset_left = 30.0
 offset_top = 260.0
 offset_right = 310.0
 offset_bottom = 300.0
+theme_override_font_sizes/font_size = 19
 text = "Reiniciar"
 
 [node name="ComboMessage" type="Label" parent="HUD"]
@@ -180,11 +186,9 @@ theme_override_font_sizes/font_size = 14
 horizontal_alignment = 2
 
 [node name="ComboGuide" type="Label" parent="HUD"]
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 18
 text = "COMBOS LIMPIOS
 JAB → CROSS  +25 %
 JAB → JAB → CROSS  +50 %
 CROSS → JAB  +50 %
-Bonus en el último golpe
-AMARILLO: vida recuperable
-Conectá para recuperarla"
+AMARILLO · Vida recuperable"
